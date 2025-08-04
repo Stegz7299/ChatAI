@@ -82,22 +82,29 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Depends(get_toke
             await producer.add_to_stream(stream_data, "message_channel")
 
             # Provide count and block arguments
-            response = await consumer.consume_stream(count=10, block=0, stream_channel="response_channel")
+            response = await consumer.consume_stream(count=10, block=5000, stream_channel="response_channel")
             logger.info(f"Received response from response_channel: {response}")
 
             if response:
-                for stream, messages in response:
-                    for message in messages:
-                        response_token = [k for k, v in message[1].items()][0]
-                        response_message = [v for k, v in message[1].items()][0]
+                if response:
+                    for stream, messages in response:
+                        for message in messages:
+                            message_id = message[0]
+                            data = message[1]
 
-                        logger.info(f"Processing message with token {response_token}")
+                            response_token = [k.decode() if isinstance(k, bytes) else k for k in data.keys()][0]
+                            response_message = [v.decode() if isinstance(v, bytes) else v for v in data.values()][0]
 
-                        if token == response_token:
-                            logger.info(f"Sending response message: {response_message}")
-                            await manager.send_personal_message(response_message, websocket)
+                            logger.info(f"Processing message with token {response_token}")
 
-                        await consumer.delete_message(stream_channel="response_channel", message_id=message[0].encode('utf-8'))
+                            if response_token == token:
+                                logger.info(f"Sending response message: {response_message}")
+                                await manager.send_personal_message(response_message, websocket)
+
+                                # Only delete if it's the message we want
+                                await consumer.delete_message(stream_channel="response_channel", message_id=message_id)
+                                break  # Stop loop once response is sent
+
 
     except WebSocketDisconnect:
         logger.info("WebSocket disconnected")

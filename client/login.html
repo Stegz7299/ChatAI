@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Login</title>
+  <style>
+    body {
+      font-family: Arial;
+      max-width: 400px;
+      margin: 100px auto;
+      text-align: center;
+    }
+    input, button {
+      padding: 10px;
+      width: 80%;
+      margin: 10px 0;
+    }
+    #error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <h2>Start a Chat Session</h2>
+  <input type="text" id="name" placeholder="Enter your name" />
+  <br />
+  <button onclick="login()">Start</button>
+  <p id="error"></p>
+  <p id="result"></p>
+
+  <script>
+  async function login() {
+    const name = document.getElementById("name").value;
+
+    const response = await fetch("http://localhost:3500/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({ name }),
+    });
+
+    const data = await response.json();
+    console.log(data); // will include the token
+  }
+</script>
+
+</body>
+</html>

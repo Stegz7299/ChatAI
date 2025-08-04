@@ -3,12 +3,20 @@ import uvicorn
 import os
 from dotenv import load_dotenv
 from src.routes.chat import chat
+from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
 api = FastAPI()
 api.include_router(chat)
 
+api.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # or use specific origin like "http://localhost:5500"
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @api.get("/test")
 async def root():

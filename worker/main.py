@@ -4,6 +4,7 @@ from src.redis.cache import Cache
 from src.redis.config import Redis
 from src.redis.stream import StreamConsumer
 import os
+import json
 from dotenv import load_dotenv
 from src.schema.chat import Message
 from src.redis.producer import Producer
@@ -50,7 +51,7 @@ async def main():
                     res = GPTChat().query(messages=chat_messages)
                     msg = Message(msg=res)
 
-                    stream_data = {str(token): str(msg.dict())}
+                    stream_data = {str(token): json.dumps(msg.dict())}
                     await producer.add_to_stream(stream_data, "response_channel")
 
                     await cache.add_message_to_cache(token=token, source="bot", message_data=msg.dict())

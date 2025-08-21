@@ -1,5 +1,5 @@
 import os
-from fastapi import APIRouter, WebSocket, Request, WebSocketDisconnect, Depends, HTTPException
+from fastapi import APIRouter, WebSocket, Request, WebSocketDisconnect, Depends, HTTPException, Form
 import uuid
 from ..socket.connection import ConnectionManager
 from ..socket.utils import get_token
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 # @desc    Route to generate chat token
 # @access  Public
 @chat.post("/token")
-async def token_generator(name: str, request: Request):
+async def token_generator(request: Request, name: str = Form(...)):
     token = str(uuid.uuid4())
     if name == "":
         raise HTTPException(status_code=400, detail={"loc": "name", "msg": "Enter a valid name"})
@@ -59,6 +59,34 @@ async def refresh_token(request: Request, token: str):
 
     return data
 
+@chat.get("/chat/tokens")
+async def get_tokens():
+    """Return all active chat tokens stored in Redis"""
+    conn = await redis.create_connection()
+
+    # list all keys (better: use SCAN in production)
+    keys = await conn.keys("*")  
+
+    # only return tokens that look like UUIDs
+    tokens = [k for k in keys if len(k) == 36]
+
+    return {"tokens": tokens}
+
+@chat.get("/history")
+async def get_history(token: str):
+    """Return chat history for a given token"""
+    conn = await redis.create_connection()
+    session_data = await conn.get(token)
+
+    if not session_data:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    try:
+        session = json.loads(session_data)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Invalid session format")
+
+    return {"history": session.get("messages", [])}
 
 # @route   WebSocket /chat
 # @desc    WebSocket for chatbot communication

@@ -3,12 +3,14 @@ import uvicorn
 import os
 from dotenv import load_dotenv
 from src.routes.chat import chat
+from src.routes.history import history_router
 from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
 api = FastAPI()
 api.include_router(chat)
+api.include_router(history_router)
 
 api.add_middleware(
     CORSMiddleware,

@@ -33,12 +33,39 @@
     color: #00c6ff;
   }
   .history-item {
-    background: #222;
-    padding: 8px;
+    padding: 8px 12px;
     border-radius: 8px;
-    margin-bottom: 6px;
+    margin: 4px 0;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.2s ease;
+  }
+
+  .history-item:hover {
+    background: #f0f4f8; /* hover effect */
+  }
+
+  .history-item.active {
+    background: #007bff;
+    color: white;
+  }
+
+  .delete-btn {
+    display: none;
+    margin-left: 8px;
     font-size: 14px;
-    line-height: 1.3;
+    color: #888;
+    cursor: pointer;
+  }
+
+  .history-item:hover .delete-btn {
+    display: inline; /* only show on hover */
+  }
+
+  .delete-btn:hover {
+    color: red;
   }
 
   /* Chat area */
@@ -146,6 +173,7 @@
 <div class="chat-area">
   <header>
     💬 Chat Session
+    <ul id="history-list"></ul>
     <button id="historyBtn">History</button>
   </header>
   <div id="chatBox"></div>
@@ -160,6 +188,7 @@
 let socket;
 const params = new URLSearchParams(window.location.search);
 const token = params.get("token");
+let currentToken = token;
 
 if (!token) {
   alert("No token found. Redirecting...");
@@ -175,15 +204,68 @@ async function loadTokens() {
     const historyList = document.getElementById("historyList");
     historyList.innerHTML = "";
 
-    data.tokens.forEach(t => {
+    data.tokens.forEach(async t => {
       const tokenDiv = document.createElement("div");
       tokenDiv.classList.add("history-item");
-      tokenDiv.textContent = t;
+      tokenDiv.dataset.token = t;
+
+      // fetch first message to use as preview
+      try {
+        const res = await fetch(`http://localhost:3500/chat/history?token=${t}`);
+        if (res.ok) {
+          const historyData = await res.json();
+          const preview = historyData.history[0]?.msg?.replace(/^Human:\s*/, "") || "Empty chat";
+          tokenDiv.textContent = preview.slice(0, 30);
+        } else {
+          tokenDiv.textContent = t;
+        }
+      } catch {
+        tokenDiv.textContent = t;
+      }
+
+      // ✅ wrap text in span so we can append delete icon
+      const textSpan = document.createElement("span");
+      textSpan.textContent = tokenDiv.textContent;
+      tokenDiv.textContent = "";
+      tokenDiv.appendChild(textSpan);
+
+      // ✅ delete button
+      const deleteBtn = document.createElement("span");
+      deleteBtn.classList.add("delete-btn");
+      deleteBtn.innerHTML = "🗑️";
+      deleteBtn.onclick = async (e) => {
+        e.stopPropagation(); // prevent triggering loadChatForToken
+        if (confirm("Delete this chat history?")) {
+          await deleteHistory(t);
+          tokenDiv.remove();
+          const chatBox = document.getElementById("chatBox");
+          if (tokenDiv.classList.contains("active")) {
+            chatBox.innerHTML = ""; // clear chat if this one was active
+          }
+        }
+      };
+
+      tokenDiv.appendChild(deleteBtn);
+
+      // ✅ click loads history
       tokenDiv.onclick = () => loadChatForToken(t);
+
       historyList.appendChild(tokenDiv);
     });
+
   } catch (err) {
     console.warn("No tokens to load:", err.message);
+  }
+}
+
+async function deleteHistory(t) {
+  try {
+    const res = await fetch(`http://localhost:3500/chat/history?token=${t}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) throw new Error("Failed to delete history");
+  } catch (err) {
+    console.error(err.message);
   }
 }
 
@@ -206,17 +288,24 @@ async function loadChatForToken(t) {
       const cleanMsg = item.msg
         .replace(/^Human:\s*/, "")
         .replace(/^Bot:\s*/, "");
-
       appendMessage(cleanMsg, sender);
     });
 
-    // highlight active token in sidebar
+    // ✅ highlight active token using dataset
     document.querySelectorAll(".history-item").forEach(el => {
       el.classList.remove("active");
-      if (el.textContent === t) {
+      if (el.dataset.token === t) {
         el.classList.add("active");
       }
     });
+
+    // ✅ update URL so refresh keeps this token
+    const newUrl = `${window.location.pathname}?token=${t}`;
+    window.history.pushState({ path: newUrl }, "", newUrl);
+
+    // ✅ reconnect socket with this token
+    if (socket) socket.close();
+    connectWebSocket(t);
 
   } catch (err) {
     console.error(err.message);
@@ -242,6 +331,29 @@ function sendMessage() {
   }
 }
 
+async function deleteHistory(token) {
+    const response = await fetch(`/chat/history/${token}`, {
+        method: "DELETE"
+    });
+    if (response.ok) {
+        // Remove from UI
+        document.getElementById(`history-${token}`).remove();
+    }
+}
+
+function renderHistory(tokens) {
+    const list = document.getElementById("history-list");
+    list.innerHTML = "";
+    tokens.forEach(token => {
+        const li = document.createElement("li");
+        li.id = `history-${token}`;
+        li.innerHTML = `
+            <span onclick="loadHistory('${token}')">${token}</span>
+            <button onclick="deleteHistory('${token}')">🗑</button>
+        `;
+        list.appendChild(li);
+    });
+}
 document.getElementById("messageInput").addEventListener("keydown", e => {
   if (e.key === "Enter") {
     e.preventDefault();
@@ -262,21 +374,46 @@ document.getElementById("historyBtn").addEventListener("click", async () => {
 
 
 // Connect WebSocket
-socket = new WebSocket(`ws://localhost:3500/chat?token=${token}`);
-socket.onopen = () => appendMessage("✅ Connected to server", "bot");
-socket.onmessage = (event) => {
-  try {
-    const data = JSON.parse(event.data);
-    if (data?.msg) {
-      appendMessage(data.msg, "bot");
-    } else {
+function connectWebSocket(t) {
+  currentToken = t;
+  socket = new WebSocket(`ws://localhost:3500/chat?token=${t}`);
+
+  socket.onopen = () => appendMessage("✅ Connected to server", "bot");
+  socket.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      if (data?.msg) {
+        appendMessage(data.msg, "bot");
+      } else {
+        appendMessage(event.data, "bot");
+      }
+    } catch {
       appendMessage(event.data, "bot");
     }
-  } catch {
-    appendMessage(event.data, "bot");
-  }
-};
-socket.onclose = () => appendMessage("🔌 Connection closed", "bot");
+  };
+  socket.onclose = () => appendMessage("🔌 Connection closed", "bot");
+}
+
+function appendMessage(text, sender) {
+  const chatBox = document.getElementById("chatBox");
+  const div = document.createElement("div");
+  div.classList.add("msg", sender, "fade-in");
+
+  // Format timestamp
+  const now = new Date();
+  const time = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+  div.innerHTML = `
+    <div>${marked.parse(text)}</div>
+    <div style="font-size: 11px; opacity: 0.6; margin-top: 4px; text-align: right;">${time}</div>
+  `;
+
+  chatBox.appendChild(div);
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+// initial connect
+connectWebSocket(currentToken);
 </script>
 </body>
 </html>

@@ -159,6 +159,36 @@
   font-weight: bold;
   }
 
+  .typing-indicator {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  color: #aaa;
+  margin: 8px 0;
+  }
+
+  .typing-indicator span {
+  height: 6px;
+  width: 6px;
+  background: #aaa;
+  border-radius: 50%;
+  margin: 0 2px;
+  display: inline-block;
+  animation: bounce 1.2s infinite;
+  }
+
+  .typing-indicator span:nth-child(2) {
+  animation-delay: 0.2s;
+  }
+  .typing-indicator span:nth-child(3) {
+  animation-delay: 0.4s;
+  }
+
+  @keyframes bounce {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1); }
+  }
+
 </style>
 </head>
 <body>
@@ -177,6 +207,10 @@
     <button id="historyBtn">History</button>
   </header>
   <div id="chatBox"></div>
+  <div id="typingIndicator" class="typing-indicator" style="display: none;">
+  Bot is typing <span></span><span></span><span></span>
+  </div>
+
   <footer>
     <input type="text" id="messageInput" placeholder="Type your message..." />
     <button onclick="sendMessage()">Send</button>
@@ -191,8 +225,13 @@ const token = params.get("token");
 let currentToken = token;
 
 if (!token) {
-  alert("No token found. Redirecting...");
-  window.location.href = "login.html";
+  const saved = localStorage.getItem("currentToken");
+  if (saved) {
+    currentToken = saved;
+  } else {
+    alert("No token found. Redirecting...");
+    window.location.href = "login.html";
+  }
 }
 
 async function loadTokens() {
@@ -234,13 +273,13 @@ async function loadTokens() {
       deleteBtn.classList.add("delete-btn");
       deleteBtn.innerHTML = "🗑️";
       deleteBtn.onclick = async (e) => {
-        e.stopPropagation(); // prevent triggering loadChatForToken
+        e.stopPropagation();
         if (confirm("Delete this chat history?")) {
           await deleteHistory(t);
           tokenDiv.remove();
-          const chatBox = document.getElementById("chatBox");
-          if (tokenDiv.classList.contains("active")) {
-            chatBox.innerHTML = ""; // clear chat if this one was active
+          if (t === currentToken) {
+            document.getElementById("chatBox").innerHTML = "";
+            localStorage.removeItem("currentToken"); // 🔥 clear saved if active is deleted
           }
         }
       };
@@ -250,6 +289,11 @@ async function loadTokens() {
       // ✅ click loads history
       tokenDiv.onclick = () => loadChatForToken(t);
 
+      // ✅ highlight currentToken when refreshing
+      if (t === currentToken) {
+        tokenDiv.classList.add("active");
+      }
+
       historyList.appendChild(tokenDiv);
     });
 
@@ -258,16 +302,27 @@ async function loadTokens() {
   }
 }
 
-async function deleteHistory(t) {
+
+async function deleteToken(token) {
   try {
-    const res = await fetch(`http://localhost:3500/chat/history?token=${t}`, {
-      method: "DELETE",
-    });
-    if (!res.ok) throw new Error("Failed to delete history");
+    const response = await fetch(`http://localhost:3500/chat/history?token=${token}`, {
+    method: "DELETE",
+  });
+
+    if (!response.ok) {
+      const error = await response.json();
+      console.error("Failed to delete:", error.detail);
+      return;
+    }
+
+    // ✅ Remove from UI after backend confirms deletion
+    setTokens((prev) => prev.filter((t) => t !== token));
+    console.log(`Deleted token: ${token}`);
   } catch (err) {
-    console.error(err.message);
+    console.error("Error deleting token:", err);
   }
 }
+
 
 async function loadChatForToken(t) {
   try {
@@ -328,11 +383,15 @@ function sendMessage() {
     socket.send(message);
     appendMessage(message, "user");
     input.value = "";
+
+    // ✅ Show typing indicator while waiting for response
+    document.getElementById("typingIndicator").style.display = "flex";
   }
 }
 
+
 async function deleteHistory(token) {
-    const response = await fetch(`/chat/history/${token}`, {
+    const response = await fetch(`http://localhost:3500/chat/history?token=${token}`, {
         method: "DELETE"
     });
     if (response.ok) {
@@ -376,10 +435,17 @@ document.getElementById("historyBtn").addEventListener("click", async () => {
 // Connect WebSocket
 function connectWebSocket(t) {
   currentToken = t;
+  localStorage.setItem("currentToken", t); // 🔥 save token across refresh
+
   socket = new WebSocket(`ws://localhost:3500/chat?token=${t}`);
 
-  socket.onopen = () => appendMessage("✅ Connected to server", "bot");
+  socket.onopen = () => {
+    appendMessage("✅ Connected to server", "bot");
+    loadTokens(); // auto-refresh sidebar
+  };
+
   socket.onmessage = (event) => {
+    document.getElementById("typingIndicator").style.display = "none";
     try {
       const data = JSON.parse(event.data);
       if (data?.msg) {
@@ -391,8 +457,20 @@ function connectWebSocket(t) {
       appendMessage(event.data, "bot");
     }
   };
+
   socket.onclose = () => appendMessage("🔌 Connection closed", "bot");
 }
+
+document.addEventListener("DOMContentLoaded", async () => {
+  const savedToken = localStorage.getItem("currentToken");
+  if (savedToken) {
+    currentToken = savedToken;
+    await loadTokens();
+    await loadChatForToken(savedToken);
+  } else if (currentToken) {
+    connectWebSocket(currentToken);
+  }
+});
 
 function appendMessage(text, sender) {
   const chatBox = document.getElementById("chatBox");

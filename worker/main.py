@@ -8,10 +8,11 @@ import json
 from dotenv import load_dotenv
 from src.schema.chat import Message
 from src.redis.producer import Producer
+from src.schema.file_handler import FileHandler
 
 # Load .env file
 load_dotenv()
-
+file_handler = FileHandler()
 redis = Redis()
 
 async def main():
@@ -40,13 +41,15 @@ async def main():
                     data = await cache.get_chat_history(token=token)
                     message_data = data['messages'][-4:]
 
-                    chat_messages = []
+                    chat_messages = [] 
                     for i in message_data:
-                        role = "user" if i.get("source", "human") == "human" else "assistant"
-                        chat_messages.append({
-                            "role": role,
-                            "content": i["msg"]
-                        })
+                        if i["msg"].startswith("File uploaded: "):
+                            filepath = i["msg"].replace("File uploaded: ", "")
+                            file_content = file_handler.read_file(filepath)
+                            chat_messages.append({"role": "user", "content": f"File content:\n{file_content}"})
+                        else:
+                            role = "user" if i.get("source", "human") == "human" else "assistant"
+                            chat_messages.append({"role": role, "content": i["msg"]})
 
                     res = GPTChat().query(messages=chat_messages)
                     msg = Message(msg=res)

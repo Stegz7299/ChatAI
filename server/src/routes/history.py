@@ -17,8 +17,28 @@ async def get_chat_history(token: str = Query(...)):
 
     return {"history": data["messages"]}
 
+@history_router.get("/chat/history/{token}")
+async def get_history_by_token(token:str):
+    json_client = redis_instance.create_rejson_client()
+    cache = Cache(json_client)
+    data = await cache.get_chat_history(token)
+
+    if not data or "messages" not in data:
+        return {"messages: []"}
+    
+
 @history_router.get("/chat/tokens")
 async def get_all_tokens():
     json_client = redis_instance.create_rejson_client()
-    keys = await json_client.keys("*")  # adjust if your keys have a prefix
+    keys = json_client.keys("*")   # not async → no await
     return {"tokens": keys}
+
+@history_router.delete("/chat/history")
+async def delete_chat_history(token: str = Query(...)):
+    json_client = redis_instance.create_rejson_client()
+    key = token  # or f"history:{token}"
+    exists = json_client.exists(key)
+    if not exists:
+        raise HTTPException(status_code=404, detail=f"No history found for token {token}")
+    json_client.delete(key)
+    return {"status": "deleted", "token": token}

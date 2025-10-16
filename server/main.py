@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 from src.routes.chat import chat
 from src.routes.history import history_router
+from src.routes.files import files
 from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
@@ -11,6 +12,7 @@ load_dotenv()
 api = FastAPI()
 api.include_router(chat)
 api.include_router(history_router)
+api.include_router(files)
 
 api.add_middleware(
     CORSMiddleware,

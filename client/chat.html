@@ -13,6 +13,7 @@
     display: flex;
     height: 100vh;
     overflow: hidden;
+    transition: background 0.3s ease, color 0.3 ease;
   }
 
   /* Sidebar for History */
@@ -189,6 +190,210 @@
   40% { transform: scale(1); }
   }
 
+  .scroll-btn {
+  position: absolute;
+  bottom: 80px; /* adjust if you have input box at bottom */
+  right: 20px;
+  background: #2c5364;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 20px;
+  cursor: pointer;
+  display: none; /* hidden by default */
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  transition: opacity 0.3s ease;
+  }
+
+  .scroll-btn.show {
+  display: block;
+  opacity: 0.9;
+  }
+
+  .copy-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+  }
+
+  .copy-btn:hover {
+  opacity: 1;
+  }
+
+  #toastContainer{
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 9999;
+  }
+
+  .toast{
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 10px 16px;
+    border-radius: 8px;
+    margin-top: 8px;
+    font-size: 14px;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.3s ease, transform 0.3s;
+  }
+
+  .toast.show{
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  body.light {
+    background: #f5f5f5;
+    color: #222;
+  }
+
+  body.light header, body.light footer,
+  body.light #historyPanel{
+    background: #fff;
+    border-color: #ddd;
+  }
+
+  body.light .msg.user{
+    background: #007bff;
+    color: white;
+  }
+
+  body.light .msg.bot{
+    background: #eee;
+    color: #222;
+  }
+
+  .msg.user { animation: slideInRight 0.3s ease;}
+  .msg.bot {animation: slideInLeft 0.3s ease;}
+
+  @keyframes slideInRight{
+    from {transform: translateX(50px); opacity: 0;}
+    to {transform: translateX(0); opacity: 1;}
+  }
+
+  @keyframes slideInLeft{
+    from {transform: translateX(-50px); opacity: 0;}
+    to {transform: translateX(0); opacity: 1;}
+  }
+
+  .placeholder{
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #aaa;
+    font-size: 16px;
+    text-align: center;
+    animation: fadeIn 0.3s ease;
+  }
+
+  #chatbox.has-messages .placeholder{
+    display: none;
+  }
+
+  .desktop-actions{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .title {
+    flex: 1;
+  }
+
+  .center-actions{
+    flex: 1;
+    display: flex;
+    justify-content: center;
+  }
+
+  .right-actions{
+    flex: 1;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+
+  .mobile-actions{
+    display: none;
+    width: 100%;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .dropdown{
+    position: relative;
+    display: inline-block;
+  }
+
+  .dropbtn{
+    background: #00c6ff;
+    border: none;
+    color: black;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+  }
+
+  .dropdown-content{
+    display: none;
+    position: absolute;
+    right: 0;
+    background: #111;
+    min-width: 120px;
+    box-shadow: 0px 8px 16px rgba(0,0,0,0.2);
+    border-radius: 6px;
+    z-index: 1000;
+    flex-direction: column;
+  }
+
+  .dropdown-content button{
+    background: none;
+    border: none;
+    color: white;
+    padding: 10px;
+    text-align: left;
+    cursor: pointer;
+    width: 100%;
+  }
+
+  .dropdown-content button:hover{
+    background: #333;
+  }
+
+  .dropdown-content.show{
+    display: flex;
+  }
+
+  @media (max-width: 768px) {
+    .desktop-actions { display: none; }
+    .mobile-actions { display: flex; }
+    header { justify-content: center; }
+    .mobile-actions #historyBtnMobile { margin: 0 auto; }
+  }
+
+  .meta{
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+    font-size: 11px;
+    opacity: 0.6;
+  }
+
+  .timestamp{
+    color: #bbb;
+  }
 </style>
 </head>
 <body>
@@ -202,16 +407,43 @@
 <!-- Chat section -->
 <div class="chat-area">
   <header>
+    <div class="desktop-actions">
     💬 Chat Session
-    <ul id="history-list"></ul>
-    <button id="historyBtn">History</button>
+      <div class="center-actions"><button onclick="exportChat()">⬇ Export Chat</button></div>
+      <ul id="history-list"></ul>
+      
+      <div class="right-actions">
+      <button id="themeToggle">🌙</button>
+      <button id="historyBtn">History</button>
+      </div>
+    </div>
+
+    <div class="mobile-actions">
+      💬 Chat Session
+      <button id="historyBtnMobile">History</button>
+      <div class="dropdown">
+        <button class="dropbtn">☰</button>
+        <div class="dropdown-content">
+          <button onclick="exportChat()">⬇ Export Chat</button>
+          <button id="themeToggleMobile">🌙</button>
+        </div>
+      </div>
+    </div>
   </header>
-  <div id="chatBox"></div>
+  <div id="chatBox">
+    <div id="chatPlaceholder" class="placeholder">
+      👋 Start chatting…
+    </div>
+  </div>
+  <div id="toastContainer"></div>
+  <button id="scrollBtn" class="scroll-btn">↓</button>
   <div id="typingIndicator" class="typing-indicator" style="display: none;">
   Bot is typing <span></span><span></span><span></span>
   </div>
 
   <footer>
+    <input type="file" id="fileInput" style="display: none;"/>
+    <button id="uploadBtn" onclick="document.getElementById('fileInput').click()">📎 Upload</button>
     <input type="text" id="messageInput" placeholder="Type your message..." />
     <button onclick="sendMessage()">Send</button>
   </footer>
@@ -222,6 +454,12 @@
 let socket;
 const params = new URLSearchParams(window.location.search);
 const token = params.get("token");
+const themeToggle = document.getElementById("themeToggle");
+const themeToggleMobile = document.getElementById("themeToggleMobile")
+const dropdown = document.querySelector(".dropdown");
+const dropbtn = dropdown.querySelector(".dropbtn");
+const dropdownContent = dropdown.querySelector(".dropdown-content");
+const fileInput = document.getElementById("fileInput");
 let currentToken = token;
 
 if (!token) {
@@ -327,16 +565,17 @@ async function deleteToken(token) {
 async function loadChatForToken(t) {
   try {
     const res = await fetch(`http://localhost:3500/chat/history?token=${t}`);
-    if (!res.ok) throw new Error("History not found");
-    const data = await res.json();
+    let messages = [];
+    if (res.ok) {
+      const data = await res.json();
+      messages = data.history;
+      if (!Array.isArray(messages) && typeof messages === "object") {
+        messages = Object.values(messages);
+      }
+    }
 
     const chatBox = document.getElementById("chatBox");
     chatBox.innerHTML = "";
-
-    let messages = data.history;
-    if (!Array.isArray(messages) && typeof messages === "object") {
-      messages = Object.values(messages);
-    }
 
     messages.forEach(item => {
       const sender = item.msg.startsWith("Human:") ? "user" : "bot";
@@ -346,34 +585,25 @@ async function loadChatForToken(t) {
       appendMessage(cleanMsg, sender);
     });
 
-    // ✅ highlight active token using dataset
+    // ✅ highlight active token
     document.querySelectorAll(".history-item").forEach(el => {
       el.classList.remove("active");
-      if (el.dataset.token === t) {
-        el.classList.add("active");
-      }
+      if (el.dataset.token === t) el.classList.add("active");
     });
 
-    // ✅ update URL so refresh keeps this token
-    const newUrl = `${window.location.pathname}?token=${t}`;
-    window.history.pushState({ path: newUrl }, "", newUrl);
-
-    // ✅ reconnect socket with this token
-    if (socket) socket.close();
-    connectWebSocket(t);
-
   } catch (err) {
-    console.error(err.message);
+    console.warn("No history yet for this token:", t);
   }
-}
 
-function appendMessage(text, sender) {
-  const chatBox = document.getElementById("chatBox");
-  const div = document.createElement("div");
-  div.classList.add("msg", sender, "fade-in");
-  div.innerHTML = marked.parse(text);
-  chatBox.appendChild(div);
-  chatBox.scrollTop = chatBox.scrollHeight;
+  // ✅ Always connect WebSocket, even if no history
+  connectWebSocket(t);
+
+  // ✅ save token persistently
+  currentToken = t;
+  localStorage.setItem("currentToken", t);
+
+  const newUrl = `${window.location.pathname}?token=${t}`;
+  window.history.replaceState(null, "", newUrl);
 }
 
 function sendMessage() {
@@ -431,18 +661,47 @@ document.getElementById("historyBtn").addEventListener("click", async () => {
   }
 });
 
+document.getElementById("historyBtnMobile").addEventListener("click", async () => {
+  const panel = document.getElementById("historyPanel");
+  if (panel.style.display === "none" || panel.style.display === "") {
+    await loadTokens();
+    panel.style.display = "flex";
+  } else {
+    panel.style.display = "none";
+  }
+});
+
 
 // Connect WebSocket
-function connectWebSocket(t) {
+function connectWebSocket(t, fromLogin = false) {
   currentToken = t;
-  localStorage.setItem("currentToken", t); // 🔥 save token across refresh
+  if (fromLogin) {
+    // only save token when it came from login
+    localStorage.setItem("currentToken", t);
+  }
 
   socket = new WebSocket(`ws://localhost:3500/chat?token=${t}`);
 
-  socket.onopen = () => {
-    appendMessage("✅ Connected to server", "bot");
-    loadTokens(); // auto-refresh sidebar
+  socket.onopen = async () => {
+  showToast("✅ Connected to server");
+
+  try {
+    const res = await fetch(`/chat/history/${currentToken}`);
+    const data = await res.json();
+    if (data.messages && data.messages.length > 0) {
+      chatBox.innerHTML = ""; // clear old placeholder
+      data.messages.forEach(msg => {
+        appendMessage(msg.text, msg.sender);
+      });
+    }
+  } catch (err) {
+    console.error("Failed to load history:", err);
+  }
+
+  // Refresh token list
+  loadTokens();
   };
+
 
   socket.onmessage = (event) => {
     document.getElementById("typingIndicator").style.display = "none";
@@ -458,22 +717,60 @@ function connectWebSocket(t) {
     }
   };
 
-  socket.onclose = () => appendMessage("🔌 Connection closed", "bot");
+  socket.onclose = () => {
+  showToast("🔌 Connection closed. Reconnecting...");
+  setTimeout(() => connectWebSocket(currentToken), 3000);
+  };
 }
 
+
 document.addEventListener("DOMContentLoaded", async () => {
+  document.getElementById("messageInput").focus();
+
+  const urlToken = new URLSearchParams(window.location.search).get("token");
   const savedToken = localStorage.getItem("currentToken");
-  if (savedToken) {
+
+  if (urlToken) {
+    // ✅ Always prefer fresh token from login
+    currentToken = urlToken;
+    localStorage.setItem("currentToken", urlToken); // save it once here
+    await loadTokens();
+    await loadChatForToken(urlToken);
+  } else if (savedToken) {
+    // ✅ fallback to saved token only if no new token
     currentToken = savedToken;
     await loadTokens();
     await loadChatForToken(savedToken);
-  } else if (currentToken) {
-    connectWebSocket(currentToken);
+  } else {
+    alert("No token found. Redirecting...");
+    window.location.href = "login.html";
   }
 });
 
+
 function appendMessage(text, sender) {
   const chatBox = document.getElementById("chatBox");
+  const scrollBtn = document.getElementById("scrollBtn");
+  const placeholder = document.getElementById("chatPlaceholder");
+  if (placeholder){
+    placeholder.remove();
+  }
+  
+  chatBox.addEventListener("scroll", () => {
+  const isAtBottom = chatBox.scrollTop + chatBox.clientHeight >= chatBox.scrollHeight - 20;
+    if (isAtBottom) {
+      scrollBtn.classList.remove("show");
+    } else {
+      scrollBtn.classList.add("show");
+    }
+  });
+
+  scrollBtn.addEventListener("click", () => {
+    chatBox.scrollTo({
+      top: chatBox.scrollHeight,
+      behavior: "smooth"
+    });
+  });
   const div = document.createElement("div");
   div.classList.add("msg", sender, "fade-in");
 
@@ -482,16 +779,148 @@ function appendMessage(text, sender) {
   const time = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
   div.innerHTML = `
-    <div>${marked.parse(text)}</div>
-    <div style="font-size: 11px; opacity: 0.6; margin-top: 4px; text-align: right;">${time}</div>
+    <div style="position: relative;">
+      <div class="message-text">${marked.parse(text)}</div>
+      <div class="meta">
+        <span class="timestamp">${time}</span>
+        <button class="copy-btn">📋</button>
+      </div>
+    </div>
   `;
+  
+  div.querySelector(".copy-btn").addEventListener("click", () => {
+  copyToClipboard(text);
+  });
 
   chatBox.appendChild(div);
   chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-// initial connect
-connectWebSocket(currentToken);
+function copyToClipboard(content) {
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(content).then(() => {
+      showToast("Copied to clipboard ✅");
+    }).catch(err => {
+      console.error("Failed to copy:", err);
+      showToast("Copy failed ❌");
+    });
+  } else {
+    // fallback for older browsers
+    const textarea = document.createElement("textarea");
+    textarea.value = content;
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    try {
+      document.execCommand("copy");
+      showToast("Copied to clipboard ✅");
+    } catch (err) {
+      console.error("Fallback copy failed:", err);
+      showToast("Copy failed ❌");
+    }
+    document.body.removeChild(textarea);
+  }
+}
+
+
+function exportChat() {
+  const chatBox = document.getElementById("chatBox");
+  const messages = chatBox.querySelectorAll(".msg");
+
+  let exportText = "";
+  messages.forEach(msg => {
+    const sender = msg.classList.contains("user") ? "You" : "Bot";
+    const text = msg.querySelector(".message-text").innerText;
+    const time = msg.querySelector("div:last-child").innerText;
+    exportText += `[${time}] ${sender}: ${text}\n\n`;
+  });
+
+  const blob = new Blob([exportText], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "chat_history.txt";
+  a.click();
+  showToast("Chat exported as text 📂");
+  URL.revokeObjectURL(url);
+}
+
+function showToast(message,duration = 2000){
+  const container = document.getElementById("toastContainer");
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  toast.textContent = message;
+  container.appendChild(toast);
+
+  setTimeout(() => toast.classList.add("show"),100);
+
+  setTimeout(() =>{
+    toast.classList.remove("show");
+    setTimeout(() => container.removeChild(toast),300);
+  }, duration);
+}
+
+fileInput.addEventListener("change", async () => {
+  const file = fileInput.files[0];
+  if (!file) return;
+
+  const formData = new FormData();
+  formData.append("token", currentToken);
+  formData.append("file", file);
+
+  try {
+    const res = await fetch("http://localhost:3500/upload_file", {
+      method: "POST",
+      body: formData,
+    });
+    const data = await res.json();
+    if (res.ok){
+      showToast("✅ File uploaded successfully");
+      appendMessage(`File uploaded: ${file.name}`, "user");
+    } else{
+      showToast("❌ Upload failed");
+      console.error(data);
+    }
+  } catch (err){
+    console.error(err);
+    showToast("❌ Error uploading file");
+  }
+});
+
+function setTheme(isLight) {
+  document.body.classList.toggle("light", isLight);
+  const icon = isLight ? "☀️" : "🌙";
+  if (themeToggle) themeToggle.textContent = icon;
+  if (themeToggleMobile) themeToggleMobile.textContent = icon;
+  localStorage.setItem("theme", isLight ? "light" : "dark");
+}
+
+function toggleTheme() {
+  const isLight = !document.body.classList.contains("light");
+  setTheme(isLight);
+}
+
+// Attach to both buttons
+if (themeToggle) themeToggle.addEventListener("click", toggleTheme);
+if (themeToggleMobile) themeToggleMobile.addEventListener("click", toggleTheme);
+
+// Apply saved theme on load
+const saved = localStorage.getItem("theme");
+setTheme(saved === "light");
+
+dropbtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  dropdownContent.classList.toggle("show");
+})
+
+document.addEventListener("click", (e) => {
+  if (!dropdown.contains(e.target)){
+    dropdownContent.classList.remove("show");
+  }
+});
+
 </script>
 </body>
 </html>

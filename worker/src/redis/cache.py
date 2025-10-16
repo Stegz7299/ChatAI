@@ -20,7 +20,9 @@ class Cache:
         return data
 
     async def add_message_to_cache(self, token: str, source: str, message_data: dict):
-        if source == "human":
+        if source == "file":
+            message_data['msg'] = "File uploaded: " + message_data['msg']
+        elif source == "human":
             message_data['msg'] = "Human: " + message_data['msg']
         elif source == "bot":
             message_data['msg'] = "Bot: " + message_data['msg']

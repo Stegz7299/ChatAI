@@ -50,14 +50,14 @@ async def token_generator(request: Request, name: str = Form(...)):
 async def refresh_token(request: Request, token: str):
     json_client = redis.create_rejson_connection()
     cache = Cache(json_client)
+
     data = await cache.get_chat_history(token)
 
     if data is None:
-        # Jika tidak ada data untuk token ini, hapus cache lama jika ada
-        await redis_client.delete(token)
         raise HTTPException(status_code=400, detail="Session expired or does not exist")
 
     return data
+
 
 @chat.get("/chat/tokens")
 async def get_tokens():
@@ -99,9 +99,6 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Depends(get_toke
     json_client = redis.create_connection()
     consumer = StreamConsumer(redis_client)
 
-    # Inisialisasi ulang dengan menghapus cache lama untuk token ini
-    await redis_client.delete(token)  # Pastikan Redis cache untuk token ini dihapus
-
     try:
         while True:
             data = await websocket.receive_text()
@@ -110,7 +107,7 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Depends(get_toke
             await producer.add_to_stream(stream_data, "message_channel")
 
             # Provide count and block arguments
-            response = await consumer.consume_stream(count=10, block=5000, stream_channel="response_channel")
+            response = await consumer.consume_stream(count=20, block=5000, stream_channel="response_channel")
             logger.info(f"Received response from response_channel: {response}")
 
             if response:
